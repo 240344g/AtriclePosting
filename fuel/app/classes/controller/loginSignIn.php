@@ -1,5 +1,8 @@
 <?php
 
+use Login\CheckUserInfo;
+use SignIn\InsertUserInfo;
+
 class Controller_LoginSignIn extends Controller {
     public function before() {
         $session = Session::get();
@@ -60,18 +63,14 @@ class Controller_LoginSignIn extends Controller {
         );
 
         // ユーザ情報を取得
-        $model_select = new Model_Select();
-        $user_data = $model_select->select("*", "user", [
-            "name" => $form["user_name"],
-            "password" => $form["password"]
-        ]);
+        $user_data = CheckUserInfo::check($form);
 
-        // ユーザ情報の個数が1つだけの時ログインする
-        if (count($user_data) === 1) {
+        // ユーザ情報が取得できたらログインする
+        if (!is_null($user_data)) {
             // セッション
             Session::start();
-            Session::set("user_id", $user_data[0]["id"]);
-            Session::set("user_name", $user_data[0]["name"]);
+            Session::set("user_id", $user_data["id"]);
+            Session::set("user_name", $user_data["name"]);
             Session::set("logged_in", true);
 
             // トップページに飛ぶ
@@ -132,17 +131,17 @@ class Controller_LoginSignIn extends Controller {
             "password" => Input::post("password")
         );
 
-        // ユーザ名とパスワードのセットの個数を取得するモデルを呼び出す
-        $model_check = new Model_Check();
-        $data_num = $model_check->check($form);
+        // ユーザ名とパスワードのセットが既にあるか確認
+        $user_data = CheckUserInfo::check($form);
 
-        if ($data_num === 0) {
+        // ユーザ情報がなければサインインする
+        if (is_null($user_data)) {
             // ユーザデータをデータベースに挿入するモデルを呼び出す
-            $model_insert = new Model_Insert();
-            $model_insert->user_data_insert($form);
+            InsertUserInfo::insert($form);
 
             return Response::redirect("login");
         } else {
+            // 再入力させる
             return Response::redirect("sign_in_re");
         }
     }
