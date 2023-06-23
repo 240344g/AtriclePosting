@@ -1,0 +1,3 @@
+[submodule "public/assets/ArticlePostingApp"]
+	path = public/assets/ArticlePostingApp
+	url = https://github.com/240344g/AtriclePosting
