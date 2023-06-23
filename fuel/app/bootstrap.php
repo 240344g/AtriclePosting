@@ -18,6 +18,17 @@ require COREPATH.'bootstrap.php';
 	// Example: 'View' => APPPATH.'classes/myview.php',
 	'Login\\CheckUserInfo' => __DIR__.'/classes/model/Login/CheckUserInfo.php',
 	'SignIn\\InsertUserInfo' => __DIR__.'/classes/model/Signin/InsertUserInfo.php',
+	'Top\\GetArticles' => __DIR__.'/classes/model/Top/GetArticles.php',
+	'MyPage\\GetMyArticles' => __DIR__.'/classes/model/MyPage/GetMyArticles.php',
+	'MyPage\\UpdateUserInfo' => __DIR__.'/classes/model/MyPage/UpdateUserInfo.php',
+	'MyPage\\DeleteAccount' => __DIR__.'/classes/model/MyPage/DeleteAccount.php',
+	'MyPage\\DeleteArticle' => __DIR__.'/classes/model/MyPage/DeleteArticle.php',
+	'Writing\\PostArticle' => __DIR__.'/classes/model/Writing/PostArticle.php',
+	'Writing\\UpdateArticle' => __DIR__.'/classes/model/Writing/UpdateArticle.php',
+	'Article\\GetArticleContents' => __DIR__.'/classes/model/Article/GetArticleContents.php',
+	'Article\\CheckHeart' => __DIR__.'/classes/model/Article/CheckHeart.php',
+	'Article\\AddHeart' => __DIR__.'/classes/model/Article/AddHeart.php',
+	'Article\\DeleteHeart' => __DIR__.'/classes/model/Article/DeleteHeart.php',
 ));
 
 // Register the autoloader

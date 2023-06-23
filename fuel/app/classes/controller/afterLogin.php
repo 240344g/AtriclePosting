@@ -1,4 +1,18 @@
 <?php
+
+use Top\GetArticles;
+use MyPage\GetMyArticles;
+use MyPage\UpdateUserInfo;
+use MyPage\DeleteAccount;
+use MyPage\DeleteArticle;
+use Login\CheckUserInfo;
+use Writing\PostArticle;
+use Writing\UpdateArticle;
+use Article\GetArticleContents;
+use Article\CheckHeart;
+use Article\AddHeart;
+use Article\DeleteHeart;
+
 class Controller_AfterLogin extends Controller {
     public function before() {
         $session = Session::get();
@@ -11,20 +25,7 @@ class Controller_AfterLogin extends Controller {
     // トップページ
     public function action_top() {
         // 記事の情報を取得
-        $model_select = new Model_Select();
-        $article_data = $model_select->select("*", "article");
-
-        // 各記事の執筆者名とハート数を取得
-        $model_count = new Model_Count();
-        for ($i = 0; $i < count($article_data); $i++) {
-            // 執筆者名取得
-            $user_name = $model_select->select("name", "user", ["id" => $article_data[$i]["user_id"]]);
-            $article_data[$i]["user_name"] = $user_name[0]["name"];
-
-            // ハート数取得
-            $hearts = $model_count->count_heart($article_data[$i]["id"]);
-            $article_data[$i]["hearts"] = $hearts;
-        }
+        $article_data = GetArticles::get();
 
         // 記事のデータをjsonにする
         $article_data_json = json_encode($article_data);
@@ -55,19 +56,7 @@ class Controller_AfterLogin extends Controller {
     // マイページ
     public function action_my_page() {
         // 記事の情報を取得
-        $model_select = new Model_Select();
-        $my_article_data = $model_select->select("*", "article", ["user_id" => Session::get("user_id")]);
-
-        // ユーザ名の追加と各記事の執筆者名とハート数を取得
-        $model_count = new Model_Count();
-        for ($i = 0; $i < count($my_article_data); $i++) {
-            // 執筆者名情報追加
-            $my_article_data[$i]["user_name"] = Session::get("user_name");
-
-            // ハート数取得
-            $hearts = $model_count->count_heart($my_article_data[$i]["id"]);
-            $my_article_data[$i]["hearts"] = $hearts;
-        }
+        $my_article_data = GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
 
         // 記事のデータをjsonにする
         $my_article_data_json = json_encode($my_article_data);
@@ -104,18 +93,13 @@ class Controller_AfterLogin extends Controller {
         $form_json = Input::post("param");
         $form = json_decode($form_json, true);
 
-        // 同じユーザ名とパスワードのアカウントがないか確認
-        $data = [
-            "name" => $form["user_name"],
-            "password" => $form["password"]
-        ];
-        $model_select = new Model_Select();
-        $user_data = $model_select->select("*", "user", $data);
+        // // 同じユーザ名とパスワードのアカウントがないか確認
+        $user_data = CheckUserInfo::check($form);
 
-        if (count($user_data) !== 1) {
-            // アップデート
-            $model_update = new Model_Update();
-            $model_update->update("user", $data, ["id" => Session::get("user_id")]);
+        // // ユーザ情報がなければアップデートする
+        if (is_null($user_data)) {
+            GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
+            UpdateUserInfo::update($form, Session::get("user_id"));
 
             return Response::forge(true);
         } else {
@@ -123,26 +107,18 @@ class Controller_AfterLogin extends Controller {
         }
     }
 
+    // アカウントを削除
     public function get_deleteAccount() {
-        $model_delete = new Model_Delete();
-
-        // ユーザが記事に押したハートを削除
-        $model_delete->delete("heart", ["user_id" => Session::get("user_id")]);
-
-        // ユーザが書いた記事のIDを取得
-        $model_select = new Model_Select();
-        $my_article_id = $model_select->select("id", "article", ["user_id" => Session::get("user_id")]);
-
-        // ユーザが書いた記事のハートを削除
-        foreach ($my_article_id as $column_value) {
-            $model_delete->delete("heart", ["article_id" => $column_value["id"]]);
-        }
+        // ユーザが書いた記事を取得
+        $my_articles = GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
 
         // ユーザが書いた記事を削除
-        $model_delete->delete("article", ["user_id" => Session::get("user_id")]);
+        foreach ($my_articles as $column_value) {
+            DeleteArticle::delete($column_value["id"]);
+        }
 
         // アカウント削除
-        $model_delete->delete("user", ["id" => Session::get("user_id")]);
+        DeleteAccount::delete(Session::get("user_id"));
 
         // セッション破棄
         Session::destroy();
@@ -157,6 +133,7 @@ class Controller_AfterLogin extends Controller {
         $edit_or_delete = json_decode($edit_or_delete_json, true);
 
         if ($edit_or_delete["order"] === "edit") {
+            // 執筆ページで編集する
             Session::set("edit_article_data", $edit_or_delete);
 
             return Response::redirect("writing");
@@ -164,12 +141,8 @@ class Controller_AfterLogin extends Controller {
             // 削除する記事のIDを取得
             $article_id = $edit_or_delete["article_id"];
 
-            // 記事に押されたハートを削除
-            $model_delete = new Model_Delete();
-            $model_delete->delete("heart", ["article_id" => $article_id]);
-
             // 記事を削除
-            $model_delete->delete("article", ["id" => $article_id]);
+            DeleteArticle::delete($article_id);
 
             return Response::redirect("my_page");
         }
@@ -225,12 +198,10 @@ class Controller_AfterLogin extends Controller {
 
         if (Input::post("article_id") === null) {
             // 記事ををデータベースに追加
-            $model_insert = new Model_Insert();
-            $model_insert->insert("article", $article_data);
+            PostArticle::insert($article_data);
         } else {
             // 記事のデータを更新
-            $model_update = new Model_Update();
-            $model_update->update("article", $article_data, ["id" => Input::post("article_id")]);
+            UpdateArticle::update($article_data, Input::post("article_id"));
         }
 
         return Response::redirect("my_page");
@@ -242,24 +213,10 @@ class Controller_AfterLogin extends Controller {
         $article_id = Session::get("show_article_id");
 
         // 記事の情報を取得
-        $model_select = new Model_Select();
-        $article_data = $model_select->select("*", "article", ["id" => $article_id]);
+        $article_data = GetArticleContents::get($article_id);
 
-        // 記事の執筆者名を取得
-        $user_name = $model_select->select("name", "user", ["id" => $article_data[0]["user_id"]]);
-        $article_data[0]["user_name"] = $user_name[0]["name"];
-
-        // 記事のハート情報取得
-        $heart = $model_select->select("*", "heart", [
-            "user_id" => Session::get("user_id"),
-            "article_id" => $article_id
-        ]);
-
-        if (count($heart) > 0) {
-            $article_data[0]["is_pushed"] = true;
-        } else {
-            $article_data[0]["is_pushed"] = false;
-        }
+        // 閲覧する記事に既にハートを押したかの確認
+        $article_data[0]["is_pushed"] = CheckHeart::check(Session::get("user_id"), $article_id);
         
         // ヘッダーのaタグ
         $header_menu = array(
@@ -297,30 +254,22 @@ class Controller_AfterLogin extends Controller {
 
     // 記事のハートを追加
     public function post_addHeart() {
-        // ハートを追加する記事のID取得
-        $article_id = Input::post("param");
+        // 追加するハートのデータ
+        $heart_info = array(
+            "user_id" => Session::get("user_id"),
+            "article_id" => Input::post("param")
+        );
 
         // データベースにハートを追加
-        $model_insert = new Model_Insert;
-        $model_insert->insert("heart", [
-            "user_id" => Session::get("user_id"),
-            "article_id" => $article_id
-        ]);
+        AddHeart::add($heart_info);
 
         return;
     }
 
     // 記事のハートを削除
     public function post_subHeart() {
-        // ハートを追加する記事のID取得
-        $article_id = Input::post("param");
-
-        // データベースにハートを追加
-        $model_delete = new Model_Delete;
-        $model_delete->delete("heart", [
-            "user_id" => Session::get("user_id"),
-            "article_id" => $article_id
-        ]);
+        // ハートを削除
+        DeleteHeart::delete(Session::get("user_id"), Input::post("param"));
 
         return;
     }
