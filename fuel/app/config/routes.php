@@ -10,6 +10,8 @@
  * @link       https://fuelphp.com
  */
 
+use Controller\Welcome;
+
 return array(
 	/**
 	 * -------------------------------------------------------------------------
