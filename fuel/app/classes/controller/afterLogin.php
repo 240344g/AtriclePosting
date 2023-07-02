@@ -56,7 +56,7 @@ class Controller_AfterLogin extends Controller {
     // マイページ
     public function action_my_page() {
         // 記事の情報を取得
-        $my_article_data = GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
+        $my_article_data = GetMyArticles::get(Session::get("user_id"));
 
         // 記事のデータをjsonにする
         $my_article_data_json = json_encode($my_article_data);
@@ -98,7 +98,6 @@ class Controller_AfterLogin extends Controller {
 
         // // ユーザ情報がなければアップデートする
         if (is_null($user_data)) {
-            GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
             UpdateUserInfo::update($form, Session::get("user_id"));
 
             return Response::forge(true);
@@ -110,7 +109,7 @@ class Controller_AfterLogin extends Controller {
     // アカウントを削除
     public function get_deleteAccount() {
         // ユーザが書いた記事を取得
-        $my_articles = GetMyArticles::get(Session::get("user_id"), Session::get("user_name"));
+        $my_articles = GetMyArticles::get(Session::get("user_id"));
 
         // ユーザが書いた記事を削除
         foreach ($my_articles as $column_value) {
